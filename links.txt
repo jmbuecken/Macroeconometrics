@@ -1,0 +1,9 @@
+gute Makro-Zeitreihendaten: https://fred.stlouisfed.org/
+
+guter R-Code unter https://homepage.univie.ac.at/erhard.reschenhofer/lecture_notes.html
+
+spezifisch:
+in den PDFs zu den einzelnen Topics findet sich auch code
+Ich denke von "Projects:  P1  P2a  P2b  P3a  P3b" kann man auch viel finden
+
+https://homepage.univie.ac.at/erhard.reschenhofer/pdf/advanced/R123.txt
