@@ -50,7 +50,7 @@ Box.test(prod.forecast$residuals, lag = 5, type = "Ljung-Box")
  # So this model does not forecast well?
  #Leah: This is my result: X-squared = 2.8498, df = 5, p-value = 0.7231 --> When is a p-value significant? Don't know how to interpret this 
 
-#Log total production ------
+#2. LOG Total production Austria, monthly 01/2020 - 01/2021
   #Since the prod.model in #1 is not good for forecasting I'm repeating the steps with the logarithmic values.
 
 ## Take Logarithm of total production
