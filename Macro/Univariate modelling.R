@@ -15,20 +15,20 @@ library(tseries)
 df <- read_csv("production_of_total_industry.csv")
 class(df) # Needs to be converted into time-series data
 prod=ts(df$AUTPROINDMISMEI, start = 01/2000, frequency = 12)
-# We have 253 observations. Jan 2000-Jan 2021. Maybe betterto exclude Jan 2021?
+# We have 253 observations. Jan 2000-Jan 2021. Maybe betterto exclude Jan 2021? --> Yes, I think it would be better to exclude Jan 2021
 plot(prod)
 
 ## Check Stationarity
-acf(prod) # data is non-stationary atm
+acf(prod) # data is non-stationary atm 
 pacf(prod) # no issues
 adf.test(prod) # p-value of 0.4078 shows again that data is non-stationary
 
 ## Selecting the best model:
 prod.model = auto.arima(prod, ic="aic", trace = TRUE)
- #Result:Best model: ARIMA(0,1,0)(0,0,2)[12] with drift.
+ #Result:Best model: ARIMA(0,1,0)(0,0,2)[12] with drift. --> Does the 12 stand for months?  
     # What does this mean?!
  # (0,1,0)-> non-seasonal part of the model
- # (0,0,2)-> seasonal part of the model
+ # (0,0,2)-> seasonal part of the model 
 prod.model
 
 
