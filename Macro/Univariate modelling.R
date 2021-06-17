@@ -153,3 +153,31 @@ Box.test(oilprice.forecast$residuals, lag = 5, type = "Ljung-Box")
 ## Validate Forecast
 #Box.test(log.oilprice.forecast$residuals, lag = 5, type = "Ljung-Box")
 # p-value insignificant: Means that we reject the nullhypothesis that there is still autocorrelation if I understood it correctly?
+
+#I did the same with GDP to compute the multivariate model
+df2 <- read.csv("AUTLORSGPNOSTSAM.csv")
+class(df2)
+gdp=ts(df2$AUTLORSGPNOSTSAM, start = 01/2000, frequency = 12)
+plot(gdp)
+
+acf(gdp)
+pacf(gdp)
+adf.test(gdp, k=12)
+
+gdp_d1 <- diff(gdp, differences = 1) 
+plot(gdp_d1)
+acf(gdp_d1)
+pacf(gdp_d1)
+adf.test(gdp_d1)
+
+gdp.model = auto.arima(gdp_d1, ic="aic", trace = TRUE)
+gdp.model
+
+acf(gdp.model$residuals)
+pacf(gdp.model$residuals)
+
+gdp.forecast=forecast(gdp.model, level = c(95),h=5*12)
+gdp.forecast
+plot(gdp.forecast)
+
+Box.test(gdp.forecast$residuals, lag = 5, type = "Ljung-Box")
