@@ -1,0 +1,310 @@
+## Same as before, I just try to exclude data from 2020 to get rid of covid shock
+
+library(vars)
+library(tseries)
+library(forecast)
+library(urca)
+library(tidyverse)
+library(mFilter)
+library(TSstudio)
+
+#1. Total production Austria, monthly 01/2000 - 12/2019----
+
+#data-source: https://fred.stlouisfed.org/series/AUTPROINDMISMEI
+#I followed the tutorial on: https://www.youtube.com/watch?v=VPhyVSJMbpA&t=326s
+#I used data for "total production Austria", originally I wanted to use the data for GDP, but I only found 
+#this normalized data, which was not so easy to work with: https://fred.stlouisfed.org/series/AUTLORSGPNOSTSAM
+# in case you figure out how to use this datase, we can also use it instead of total production. 
+
+## Import data & create time-series
+df <- read_csv("production_of_total_industry.csv")
+class(df) # Needs to be converted into time-series data
+xprod=ts(df$AUTPROINDMISMEI, start = c(2000,01), end = c(2019,12), frequency = 12)
+# Converting total production into time-series data
+view(xprod)
+plot.ts(xprod, ylab = ("Total production in Austria")) #Pres!
+#lag.plot(prod, lags =30)# the linear pattern shows that there is autocorrelation
+# lag=12 -> no sign of seasonality?
+
+
+## Check Stationarity
+acf(xprod, main = "ACF of total production in Austria") # data is non-stationary atm
+pacf(xprod, main = "PACF of total production in Austria")# no issues
+adf.test(xprod)  # Null-hypothesis:  a unit roots is present (says our project is a random walk with a drift) -> reject the null hypothesis 
+# p-value of 0.4653 shows again that data is non-stationary
+
+#To solve the stationarity probelm, we take first differences
+xprod_d1 <- diff(xprod, differences = 1)
+plot(xprod_d1) # looks way more stationary - good
+acf(xprod_d1) # Might indicate an AR(2) process
+pacf(xprod_d1) #MA(7): signs for seasonality?
+adf.test(xprod_d1) #p-value acceptable now
+
+## Selecting the best model:
+xprod.mod_diff = auto.arima(xprod_d1, ic="aic", trace = TRUE)
+#AIC: Best model: ARIMA(2,0,1)            with non-zero mean
+#BIC: ARIMA(1,0,0)            with non-zero mea
+
+xprod.mod_diff
+
+## Check autocorrelation in stationarity: ACF of model residuals
+acf(ts(xprod.mod_diff$residuals))
+pacf(ts(xprod.mod_diff$residuals)) #would look ok, if we had chosen MA(3)
+
+## Forecasting
+prod.forecast=forecast(xprod.mod_diff,level = c(95),h=5*12)
+prod.forecast 
+plot(prod.forecast)
+
+## Validate Forecast
+Box.test(prod.forecast$residuals, lag = 5, type = "Ljung-Box")
+#Result interpretation? p-value = 0.8106
+#The null hypothesis of the Box Ljung Test is that our model does not show lack of fit.
+#A significant p-value in this test rejects the null hypothesis that the time series isn’t autocorrelated.
+# So this model does not forecast well?
+
+#2. LOG Total production Austria, monthly 01/2020 - 01/2021------
+#Since the prod.model in #1 is not good for forecasting I'm repeating the steps with the logarithmic values.
+
+## Take Logarithm of total production
+View(df)
+xlog.prod<- log(prod)
+ts.xlog.pro = ts(xlog.prod, start = c(2000,01), end = c(2019,12), frequency = 12)
+plot(ts.xlog.pro, main = "Logarithmic total production") #I really don't get why they look the same?
+view(ts.xlog.pro)
+
+## Check Stationarity
+acf(ts.xlog.pro)
+pacf(ts.xlog.pro) #Indicates MA(1)?
+adf.test(ts.xlog.pro) #reject the Null
+
+#Model with just log: NO use since adf rejected 
+#xlog.pro.mod <- auto.arima(ts.xlog.pro, ic = "aic", trace = TRUE)
+
+#Taking first differences:
+ts.xlog.pro_d1 <- diff(ts.xlog.pro, differences = 1)
+plot(ts.xlog.pro_d1, main = "log total production_D1")
+acf(ts.xlog.pro_d1)
+pacf(ts.xlog.pro_d1) #might indicate ARMA(2,1)?
+adf.test(ts.log.pro_d1) # acceptable
+
+## Select best model:
+xlog.prod.model_D1 = auto.arima(ts.xlog.pro_d1, ic="aic", trace = TRUE)
+# AIC: ARIMA(3,0,0)(2,0,0)[12] with non-zero mean
+# BIC: Best model: ARIMA(1,0,0)            with non-zero mean 
+
+xlog.prod.model_D1
+
+
+## Check Stationarity for prod.mod: ACF of model residuals
+acf(ts(xlog.prod.model_D1$residuals))
+pacf(ts(xlog.prod.model_D1$residuals))
+
+## Forecasting:
+xlog.pro.forecast_D1=forecast(log.prod.model_D1,level = c(95),h=5*12)
+xlog.pro.forecast_D1
+plot(xlog.pro.forecast_D1)
+
+## Validate Forecast
+Box.test(xlog.pro.forecast_D1$residuals, lag = 5, type = "Ljung-Box")
+# p-value of 1 seems a bit sketchy. But should be better like that.
+
+
+#3. Future Crude Oil Prices, monthly 01/2020 - 01/2021------
+
+#data-source: https://www.investing.com/commodities/crude-oil-historical-data
+#! Those are prices for futures: Shall we treat them differently? Maybe important for joint analysis? 
+
+## Import data & Convert to time-series:
+df1 <- read_csv("Crude Oil WTI Futures Historical Data.csv")
+
+-- Column specification --------------------------------------------------------
+  cols(
+    Date = col_character(),
+    Price = col_double(),
+    Open = col_double(),
+    High = col_double(),
+    Low = col_double(),
+    Vol. = col_character(),
+    `Change %` = col_character()
+  )
+View(df1)
+# Needs to be converted into time-series data
+
+xoilprice=ts(df1$Price, start = c(2000,01), end = c(2019,12), frequency = 12)
+plot(xoilprice)
+
+## Check stationarity
+acf(xoilprice)
+pacf(xoilprice) # AR(1)
+adf.test(xoilprice, k=12) #took k=12 because it's monthly data
+#-> non-stationary
+
+## Taking first differences: (To see if an AR(1) model is fitting)
+xoilprice_d1 <- diff(xoilprice, differences = 1)
+plot(xoilprice_d1)
+acf(xoilprice_d1)
+pacf(xoilprice_d1) #ARMA(2,4)?
+adf.test(oilprice_d1) # p-value=0.01 -> first differences are stationary, looks good, still gonna try with the modelselection command though. 
+
+
+
+xoilprice.model = auto.arima(xoilprice_d1, ic="bic", trace = TRUE)
+#AIC:Best model: ARIMA(1,0,0)            with zero mean
+#BIC:Best model: ARIMA(1,0,0)            with zero mean   
+
+xoilprice.model
+
+
+acf(xoilprice.model$residuals)
+pacf(xoilprice.model$residuals)
+
+## Forecasting:
+xoilprice.forecast=forecast(xoilprice.model, level = c(95),h=5*12)
+xoilprice.forecast
+plot(xoilprice.forecast) #doesn't look very exciting lol
+
+
+## Validate Forecast
+Box.test(xoilprice.forecast$residuals, lag = 5, type = "Ljung-Box")
+#p-value=0.4076: Means that we reject the nullhypothesis that there is still autocorrelation if I understood it correctly.
+
+#4. LOG Future Crude Oil Prices, monthly 01/2020 - 01/2021----
+
+# Analysis with log-prices is not necessary - I think?
+
+#View(df1)
+xlog.oilprice<- log(xoilprice)
+plot(xlog.oilprice)
+
+## Check Stationarity
+acf(xlog.oilprice) #non-stationary -> ake first differences
+pacf(xlog.oilprice) #AR(1)
+adf.test(xlog.oilprice) too big
+
+#Take first differences and repeat above steps
+xlog.oilprice_d1 <- diff(xlog.oilprice, differences = 1)
+plot(xlog.oilprice_d1)
+acf(xlog.oilprice_d1)
+pacf(xlog.oilprice_d1)
+adf.test(xlog.oilprice_d1)
+
+## Select best model:
+xlog.oilprice.d1.model = auto.arima(xlog.oilprice_d1, ic="bic", trace = TRUE)
+#AIC: ARIMA(0,0,1)(1,0,0)[12] with zero mean
+#BIC: ARIMA(0,0,1)(1,0,0)[12] with zero mean
+xlog.oilprice.d1.model
+
+##Check Stationarity for prod.mod: ACF of model residuals
+acf(ts(log.oilprice.d1.model$residuals))
+pacf(ts(log.oilprice.d1.model$residuals)) 
+
+##Forecasting:
+xlog.oilprice.forecast=forecast(log.oilprice.d1.model,level = c(95),h=5*12)
+xlog.oilprice.forecast
+plot(xlog.oilprice.forecast)
+
+## Validate Forecast
+Box.test(xlog.oilprice.forecast$residuals, lag = 5, type = "Ljung-Box")
+# p-value insignificant: Means that we reject the nullhypothesis that there is still autocorrelation if I understood it correctly?
+
+# 5. GDP----- GDP normalized at 100------
+df2 <- read.csv("austria_gdp_monthly.csv")
+view(df2)
+class(df2)
+xgdp=ts(df2$AUTLORSGPNOSTSAM, start = c(2000,01), end =c(2019,12), frequency = 12)
+plot(xgdp)
+
+acf(xgdp) #interpretation? 
+pacf(xgdp) #  MA(3)
+adf.test(xgdp, k=12) #not significant. 
+
+xgdp_d1 <- diff(xgdp, differences = 1) 
+plot(xgdp_d1)
+acf(xgdp_d1)
+pacf(xgdp_d1)
+adf.test(xgdp_d1) #significant
+
+xgdp.model = auto.arima(xgdp_d1, ic="bic", trace = TRUE)
+#AIC: ARIMA(4,0,2)(2,0,0)[12] with zero mean       
+#BIC: ARIMA(4,0,2)(2,0,0)[12] with zero mean 
+xgdp.model
+
+acf(xgdp.model$residuals)
+pacf(xgdp.model$residuals)
+
+xgdp.forecast=forecast(xgdp.model, level = c(95),h=5*12)
+xgdp.forecast
+plot(xgdp.forecast)##LOOKS Better thsn everything else we have
+
+Box.test(xgdp.forecast$residuals, lag = 5, type = "Ljung-Box")
+
+# 6.multivariate mode: Vector autoregression model-----
+
+#plot for data visualisation:
+
+plot(xoilprice, xprod) #scatter plot
+plot(cbind(xoilprice, xprod, xgdp))#both variables: doesn't look good tbh
+plot(cbind(xoilprice_d1, xprod_d1, xgdp_d1))
+
+#Setting up an OLS model:
+OLS <- lm(xgdp_d1 ~ xoilprice_d1)
+OLS
+summary(OLS)
+OLS2<- lm(xprod_d1 ~ xoilprice_d1)
+OLS2
+summary(OLS2)
+
+## In such an OLS model we suppose causality from oilprice to total production, which is actually not what we want. 
+# Since we don't want to impose structure we use VAR
+
+#VAR model: 
+#In the univariate analysis we have already checkes if the data is stationary
+#We will now proceed by estimating an vector autoregression model with the variables:oilprice_d1 and ts.pro_d1
+#To estimate the model I used these instructions: https://towardsdatascience.com/a-deep-dive-on-vector-autoregression-in-r-58767ebb3f06
+# and https://www.youtube.com/watch?v=UYRFYWNxX4c
+
+
+#To construct the model we bind the variables in one vector called joint.variables
+xjoint.variables <- cbind(xprod_d1, xoilprice_d1)
+colnames(xjoint.variables)<-cbind("xproduction", "xprice")
+View(xjoint.variables)
+
+lagselect <- VARselect(xjoint.variables, lag.max = 15, type = "const")
+lagselect$selection
+#AIC suggests 7 lags, the rest 1.  
+
+# Creating the joint model:
+
+xjoint.model <- VAR(xjoint.variables, p=7, type = "const", season = NULL, exog = NULL)
+summary(xjoint.model)
+#seems like only the price is significant?
+#What to do with this now lol?
+
+#Check Residuals for autocorrelation
+Serial1 <- serial.test(xjoint.model, lags.pt = 7, type = "PT.asymptotic")
+Serial1
+
+#Check for ARCH effects
+Arch1 <- arch.test(xjoint.model, lags.multi = 7, multivariate.only = TRUE)
+Arch1
+
+#Check for normality of distribution of the residuals
+Norm1 <- normality.test(xjoint.model, multivariate.only = TRUE)
+Norm1
+
+#Check for the presence of structural breaks
+Stability1 <- stability(xjoint.model, type = "OLS-CUSUM")
+plot(Stability1)
+#doesn't work but I don't know what it means anyways
+
+#test granger causality for both variables:
+Grangerprod<- causality(xjoint.model, cause = "xproduction")
+Grangerprod
+
+Grangerprice<- causality(xjoint.model, cause = "xprice")
+Grangerprice
+
+#Impulse Response
+Priceirf <- irf(xjoint.model, impulse = "xprice", response = "xproduction", n.ahead = 20, boot = TRUE)
+plot(Prodirf, ylab = "xproduction", main = "Price shock to Production")
