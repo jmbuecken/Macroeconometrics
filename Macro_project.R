@@ -1,0 +1,75 @@
+#loading the pacages
+library(vars)
+library(tseries)
+library(forecast)
+library(urca)
+library(tidyverse)
+library(mFilter)
+library(TSstudio)
+
+#raw data
+df <- read.csv("C:/Users/lbryson/Downloads/AUTPROINDMISMEI.csv")
+xprod=ts(df$AUTPROINDMISMEI, start = c(2000,01), end = c(2019,12), frequency = 12)
+view(xprod)
+plot.ts(xprod, main = ("Total production in Austria"))
+acf(xprod, main = "ACF of total production in Austria") # data is non-stationary atm
+pacf(xprod, main = "PACF of total production in Austria")
+
+#Dichey-Fuller test on (non) stationarity
+adf.test(xprod) #high p-value --> non-stationary data 
+
+#taking first differences 
+xprod_d1 <- diff(xprod, differences = 1)
+plot(xprod_d1) 
+acf(xprod_d1) 
+pacf(xprod_d1) 
+adf.test(xprod_d1) # low p-value --> data stationary now 
+
+#finding an ARMA model 
+xprod.mod = auto.arima(xprod_d1, ic="aic", trace = TRUE)
+xprod.mod = auto.arima(xprod_d1, ic="bic", trace = TRUE)
+xprod.mod
+#we choose AIC as IC and get an ARIMA(2,0,1)
+
+#checking for (no) serial correlation between residuals 
+acf(ts(xprod.mod$residuals))
+pacf(ts(xprod.mod$residuals)) 
+Box.test(xprod.mod$residuals, type = "Ljung-Box",lag = 7, fitdf=2)
+
+#Now we do the same for the oil price 
+df1 <- read.csv("C:/Users/lbryson/Downloads/CrudeOilPrices.csv")
+cols(
+  Date = col_character(),
+  Price = col_double(),
+  Open = col_double(),
+  High = col_double(),
+  Low = col_double(),
+  Vol. = col_character(),
+  `Change %` = col_character()
+)
+View(df1)
+xoilprice=ts(df1$Price, start = c(2000,01), end = c(2019,12), frequency = 12)
+plot(xoilprice, main = ("Oil Price"))
+acf(xoilprice)
+pacf(xoilprice)
+
+#Dichey-Fuller test on (non) stationarity
+adf.test(xoilprice) #--> non-stationary 
+
+#taking first-differences
+xoilprice_d1 <- diff(xoilprice, differences = 1)
+plot(xoilprice_d1, main = ("Oil Price first-differences"))
+acf(xoilprice_d1)
+pacf(xoilprice_d1) 
+adf.test(xoilprice_d1) #--> data now stationary
+
+#finding an ARMA model 
+xoilprice.model = auto.arima(xoilprice_d1, ic="aic", trace = TRUE)
+xoilprice.model = auto.arima(xoilprice_d1, ic="bic", trace = TRUE)
+xoilprice.model
+#same outcome for both IC: ARIMA (1,0,0)
+
+#checking for (no) serial correlation between residuals 
+acf(ts(xoilprice.model$residuals))
+pacf(ts(xoilprice.model$residuals))
+Box.test(xoilprice.model$residuals, type = "Ljung-Box", lag = 5, fitdf=1)
