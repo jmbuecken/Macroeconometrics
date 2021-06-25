@@ -8,7 +8,7 @@ library(mFilter)
 library(TSstudio)
 
 #raw data
-df <- read.csv("C:/Users/lbryson/Downloads/AUTPROINDMISMEI.csv")
+df <- read.csv("AUTPROINDMISMEI.csv")
 xprod=ts(df$AUTPROINDMISMEI, start = c(2000,01), end = c(2019,12), frequency = 12)
 view(xprod)
 plot.ts(xprod, main = ("Total production in Austria"))
@@ -37,7 +37,7 @@ pacf(ts(xprod.mod$residuals))
 Box.test(xprod.mod$residuals, type = "Ljung-Box",lag = 7, fitdf=2)
 
 #Now we do the same for the oil price 
-df1 <- read.csv("C:/Users/lbryson/Downloads/CrudeOilPrices.csv")
+df1 <- read.csv("CrudeOilPrices.csv")
 cols(
   Date = col_character(),
   Price = col_double(),
